@@ -6,7 +6,6 @@ This is an experiment to build a ClassLoader for zip files that is not based on 
 Mandatory
 ---------
 * parallel capable
-* `INDEX.LIST` support
 
 Optional
 --------
@@ -17,4 +16,5 @@ Low Prio / No Idea
 ------------------
 * pack200
 * ZIP64
+* `INDEX.LIST` support (seems pointless, information is available from central directory)
 
