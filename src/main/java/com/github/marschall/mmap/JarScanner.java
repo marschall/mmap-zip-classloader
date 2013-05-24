@@ -4,17 +4,25 @@ import java.io.IOException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 
+// http://www.pkware.com/appnote
 public class JarScanner {
-
-  // 0x06054b50
-  private static final byte[] END_OF_CENTRAL_DIR_SIGNATURE = new byte[]{0x50, 0x4b, 0x05, 0x06};
   
   // 0x02014b50
   private static final byte[] CENTRAL_DIR_SIGNATURE = new byte[]{0x50, 0x4b, 0x01, 0x02};
+  
+  // 0x04034b50
+  private static final byte[] LOCAL_FILE_HEADER_SIGNATURE = new byte[]{0x50, 0x4b, 0x03, 0x04};
+  
+  // 0x06054b50
+  private static final byte[] END_OF_CENTRAL_DIR_SIGNATURE = new byte[]{0x50, 0x4b, 0x05, 0x06};
+  
+  // 0x08074b50
+  private static final byte[] DATA_DESCRIPTOR_SIGNATURE = new byte[]{0x50, 0x4b, 0x07, 0x08};
 
   public void scan(Path p) throws IOException {
     try (FileChannel channel = FileChannel.open(p, StandardOpenOption.READ)) {
@@ -38,55 +46,84 @@ public class JarScanner {
         buffer.position(centralDirectoryOffset);
         buffer.get(centralDirectory, 0, centralDirectorySize);
         
-        if (isCentralDirSignature(centralDirectory)) {
-          int versionNeededToExtract = readInt2(centralDirectory, 6);
-          if (versionNeededToExtract != 10) {
-            throw new UnsupportedFeatureException("unsupported verison " + (versionNeededToExtract / 10) + '.' + (versionNeededToExtract % 10) + " only 1.0 is supported");
+        int recodOffset = 0;
+        for (int i = 0; i < numberOfEntries; ++i) {
+          if (isCentralDirSignature(centralDirectory, recodOffset)) {
+            int versionNeededToExtract = readInt2(centralDirectory, 6 + recodOffset);
+            if (versionNeededToExtract != 10) {
+              throw new UnsupportedFeatureException("unsupported verison " + (versionNeededToExtract / 10) + '.' + (versionNeededToExtract % 10) + " only 1.0 is supported");
+            }
+            int generalPurposeBitFlag = readInt2(centralDirectory, 8 + recodOffset);
+            int compressionMethod = readInt2(centralDirectory, 10 + recodOffset);
+            int fileNameLength = readInt2(centralDirectory, 28 + recodOffset);
+            int extraFieldLength = readInt2(centralDirectory, 30 + recodOffset);
+            int fileCommentLength = readInt2(centralDirectory, 32 + recodOffset);
+            
+            int relativeOffsetOfLocalHeader = readInt4(centralDirectory, 42 + recodOffset);
+            
+            String fileName = readString(centralDirectory, fileNameLength, 46 + recodOffset);
+            
+            System.out.println(fileName);
+            
+            recodOffset += 46 + fileNameLength + extraFieldLength + fileCommentLength;
+            
+          } else {
+            throw new CorruptFileException("invalid central directory header at: " + centralDirectoryOffset);
           }
-          int generalPurposeBitFlag = readInt2(centralDirectory, 8);
-          int compressionMethod = readInt2(centralDirectory, 10);
-          
-        } else {
-          throw new CorruptFileException("invalid central directory header at: " + centralDirectoryOffset);
         }
+        
         
       } else {
         // TODO scan slowly
+        throw new UnsupportedFeatureException("expected end of central dir at end of file");
       }
     }
   }
-
-  private int readInt4(byte[] b, int offset) {
-    // TODO long
-    return Byte.toUnsignedInt(b[offset])
-        | Byte.toUnsignedInt(b[offset + 1]) << 8
-        | Byte.toUnsignedInt(b[offset + 2]) << 16
-        | Byte.toUnsignedInt(b[offset + 3]) << 24;
+  
+  private String readString(byte[] bytes, int length, int offset) {
+    return new String(bytes, offset, length, StandardCharsets.UTF_8);
   }
 
-  private int readInt2(byte[] b, int offset) {
-    return Byte.toUnsignedInt(b[offset]) | Byte.toUnsignedInt(b[offset + 1]) << 8;
+  private int readInt4(byte[] bytes, int offset) {
+    // TODO long
+    return Byte.toUnsignedInt(bytes[offset])
+        | Byte.toUnsignedInt(bytes[offset + 1]) << 8
+        | Byte.toUnsignedInt(bytes[offset + 2]) << 16
+        | Byte.toUnsignedInt(bytes[offset + 3]) << 24;
+  }
+
+  private int readInt2(byte[] bytes, int offset) {
+    return Byte.toUnsignedInt(bytes[offset]) | Byte.toUnsignedInt(bytes[offset + 1]) << 8;
   }
 
   private boolean isEndOfCentralDirSignature(byte[] b) {
     return startsWit4h(b, END_OF_CENTRAL_DIR_SIGNATURE);
   }
   
-  private boolean isCentralDirSignature(byte[] b) {
-    return startsWit4h(b, CENTRAL_DIR_SIGNATURE);
+  private boolean isCentralDirSignature(byte[] bytes, int offset) {
+    return startsWit4h(bytes, offset, CENTRAL_DIR_SIGNATURE);
   }
   
-  private boolean startsWit4h(byte[] b, byte[] prefix) {
-    return b[0] == prefix[0]
-        && b[1] == prefix[1]
-        && b[2] == prefix[2]
-        && b[3] == prefix[3];
+  private boolean startsWit4h(byte[] bytes, int offset, byte[] prefix) {
+    return bytes[offset] == prefix[0]
+        && bytes[offset + 1] == prefix[1]
+        && bytes[offset + 2] == prefix[2]
+        && bytes[offset + 3] == prefix[3];
+  }
+  
+  private boolean startsWit4h(byte[] bytes, byte[] prefix) {
+    return bytes[0] == prefix[0]
+        && bytes[1] == prefix[1]
+        && bytes[2] == prefix[2]
+        && bytes[3] == prefix[3];
   }
 
   public static void main(String[] args) throws IOException {
     JarScanner scanner = new JarScanner();
     Path path = Paths.get("target", "mmap-zip-classloader-0.1.0-SNAPSHOT.jar");
     scanner.scan(path);
+    path = Paths.get("/Library/Java/JavaVirtualMachines/jdk1.8.0.jdk/Contents/Home/jre/lib/rt.jar");
+//    scanner.scan(path);
   }
 
 }
