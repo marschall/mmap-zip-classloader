@@ -16,4 +16,5 @@ Optional
 Low Prio / No Idea
 ------------------
 * pack200
+* ZIP64
 
