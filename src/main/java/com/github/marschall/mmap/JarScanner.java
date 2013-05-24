@@ -8,6 +8,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.HashMap;
+import java.util.Map;
 
 // http://www.pkware.com/appnote
 public class JarScanner {
@@ -46,6 +48,7 @@ public class JarScanner {
         buffer.position(centralDirectoryOffset);
         buffer.get(centralDirectory, 0, centralDirectorySize);
         
+        Map<String, Integer> offsetMap = new HashMap<>(centralDirectoryOffset);
         int recodOffset = 0;
         for (int i = 0; i < numberOfEntries; ++i) {
           if (isCentralDirSignature(centralDirectory, recodOffset)) {
@@ -62,8 +65,9 @@ public class JarScanner {
             int relativeOffsetOfLocalHeader = readInt4(centralDirectory, 42 + recodOffset);
             
             String fileName = readString(centralDirectory, fileNameLength, 46 + recodOffset);
+            offsetMap.put(fileName, relativeOffsetOfLocalHeader);
             
-            System.out.println(fileName);
+//            System.out.println(fileName);
             
             recodOffset += 46 + fileNameLength + extraFieldLength + fileCommentLength;
             
@@ -119,11 +123,18 @@ public class JarScanner {
   }
 
   public static void main(String[] args) throws IOException {
+    long start = System.currentTimeMillis();
+    
     JarScanner scanner = new JarScanner();
     Path path = Paths.get("target", "mmap-zip-classloader-0.1.0-SNAPSHOT.jar");
     scanner.scan(path);
     path = Paths.get("/Library/Java/JavaVirtualMachines/jdk1.8.0.jdk/Contents/Home/jre/lib/rt.jar");
 //    scanner.scan(path);
+    
+    long end = System.currentTimeMillis();
+    System.out.printf("completed in %d ms%n", end - start);
+    
+    
   }
 
 }
