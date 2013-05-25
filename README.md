@@ -16,5 +16,5 @@ Low Prio / No Idea
 ------------------
 * pack200
 * ZIP64
-* `INDEX.LIST` support (seems pointless, information is available from central directory)
+* `INDEX.LIST` support (seems only useful for [applets](http://docs.oracle.com/javase/7/docs/technotes/guides/jar/jar.html#JAR%20Index))
 
