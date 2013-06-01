@@ -8,7 +8,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 // http://www.pkware.com/appnote
@@ -121,19 +123,27 @@ public class JarScanner {
         && bytes[2] == prefix[2]
         && bytes[3] == prefix[3];
   }
+  
 
   public static void main(String[] args) throws IOException {
-    long start = System.currentTimeMillis();
-    
     JarScanner scanner = new JarScanner();
-    Path path = Paths.get("target", "mmap-zip-classloader-0.1.0-SNAPSHOT.jar");
-    scanner.scan(path);
-    path = Paths.get("/Library/Java/JavaVirtualMachines/jdk1.8.0.jdk/Contents/Home/jre/lib/rt.jar");
-//    scanner.scan(path);
     
+    String home = System.getProperty("user.home");
+    List<String> paths = Arrays.asList("/Library/Java/JavaVirtualMachines/jdk1.8.0.jdk/Contents/Home/jre/lib/rt.jar",
+        "target/mmap-zip-classloader-0.1.0-SNAPSHOT.jar",
+        home + "/.m2/repository/org/jboss/logging/jboss-logging/3.1.3.GA/jboss-logging-3.1.3.GA.jar",
+        home + "/.m2/repository/org/jboss/jboss-vfs/3.2.0.Beta1/jboss-vfs-3.2.0.Beta1.jar");
+    for (String each : paths) {
+      scanPath(scanner, each);
+    }
+    
+  }
+  
+  static void scanPath(JarScanner scanner, String path) throws IOException {
+    long start = System.currentTimeMillis();
+    scanner.scan(Paths.get(path));
     long end = System.currentTimeMillis();
-    System.out.printf("completed in %d ms%n", end - start);
-    
+    System.out.printf("completed %s in %d ms%n", path, end - start);
     
   }
 
