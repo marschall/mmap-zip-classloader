@@ -174,7 +174,7 @@ public class JarScanner2 {
         throw new UnsupportedFeatureException("back buffer too small");
       }
       int loaded = this.fillBack(buffer);
-      if (capacity > loaded + this.front.length - position) {
+      if (loaded + this.front.length - position < capacity) {
         throw new CorruptFileException("end of file reached");
       }
     }
@@ -189,6 +189,7 @@ public class JarScanner2 {
       int length = min(back.length, buffer.limit() - buffer.position());
      
       buffer.get(back, 0, length);
+      this.backFilled = true;
       
       return length;
     }
@@ -255,8 +256,8 @@ public class JarScanner2 {
     String home = System.getProperty("user.home");
     List<String> paths = Arrays.asList(
 //        "/Library/Java/JavaVirtualMachines/jdk1.8.0.jdk/Contents/Home/jre/lib/rt.jar",
-//        "target/mmap-zip-classloader-0.1.0-SNAPSHOT.jar",
-//        home + "/.m2/repository/org/jboss/logging/jboss-logging/3.1.3.GA/jboss-logging-3.1.3.GA.jar"
+        "target/mmap-zip-classloader-0.1.0-SNAPSHOT.jar",
+        home + "/.m2/repository/org/jboss/logging/jboss-logging/3.1.3.GA/jboss-logging-3.1.3.GA.jar",
         home + "/.m2/repository/org/jboss/jboss-vfs/3.2.0.Beta1/jboss-vfs-3.2.0.Beta1.jar"
         );
     for (String each : paths) {
