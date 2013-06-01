@@ -81,6 +81,9 @@ public class JarScanner2 {
             doubleBuffer.ensureAvailable(46 + fileNameLength + fileCommentLength, buffer);
             
             String fileName = doubleBuffer.readString(fileNameLength, 46);
+            if (fileName.length() != fileNameLength) {
+              throw new RuntimeException();
+            }
             offsetMap.put(fileName, relativeOffsetOfLocalHeader);
             
 //            System.out.println(fileName);
@@ -184,12 +187,14 @@ public class JarScanner2 {
     }
     
     private void flipBuffers() {
+      byte[] temp = this.front;
       this.front = this.back;
+      this.back = temp;
       this.backFilled = false;
     }
     
     
-    private String readString(int length, int offset) {
+    String readString(int length, int offset) {
       if (this.position + offset + length < this.front.length) {
         // all if 1st buffer
         return new String(this.front, this.position + offset, length, StandardCharsets.UTF_8);
@@ -201,19 +206,19 @@ public class JarScanner2 {
         // TODO high off-by-one chance
         byte[] buffer = new byte[length];
         System.arraycopy(this.front, this.position + offset, buffer, 0, this.front.length - offset - this.position);
-        System.arraycopy(this.back, 0, buffer, this.front.length - offset - this.position, this.position + offset - this.front.length);
+        System.arraycopy(this.back, 0, buffer, this.front.length - offset - this.position, this.position + offset + length - this.front.length);
         return new String(buffer, 0, length, StandardCharsets.UTF_8);
       }
     }
     
-    private boolean isCentralDirSignature() {
+    boolean isCentralDirSignature() {
       return this.readByte(0) == CENTRAL_DIR_SIGNATURE[0]
           && this.readByte(1) == CENTRAL_DIR_SIGNATURE[1]
           && this.readByte(2) == CENTRAL_DIR_SIGNATURE[2]
           && this.readByte(3) == CENTRAL_DIR_SIGNATURE[3];
     }
     
-    private int readInt4(int offset) {
+    int readInt4(int offset) {
       // TODO long
       return readByte(offset)
           | readByte(offset + 1) << 8
@@ -221,7 +226,7 @@ public class JarScanner2 {
           | readByte(offset + 3) << 24;
     }
     
-    private int readByte(int offset) {
+    int readByte(int offset) {
       int readPosition = this.position + offset;
       if (readPosition < this.front.length) {
         return Byte.toUnsignedInt(this.front[readPosition]);
@@ -230,7 +235,7 @@ public class JarScanner2 {
       }
     }
 
-    private int readInt2(int offset) {
+    int readInt2(int offset) {
       return readByte(offset) | readByte(offset + 1) << 8;
     }
     
