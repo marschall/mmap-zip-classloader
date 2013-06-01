@@ -54,8 +54,7 @@ public class JarScanner2 {
         if (centralDirectoryOffset >= size - 8192) {
           // we just got lucky and the central directory is in the chunk we read
           // TODO optimize for case were central directory is in second last chunk
-          
-          doubleBuffer.position(x);
+          doubleBuffer.position((int) (size + 8192 - centralDirectoryOffset));
         } else {
           buffer.position(centralDirectoryOffset);
           buffer.get(front, 0, 8192);
@@ -63,11 +62,9 @@ public class JarScanner2 {
           doubleBuffer.position(0);
         }
         
-        
-        
         Map<String, Integer> offsetMap = new HashMap<>(centralDirectoryOffset);
         for (int i = 0; i < numberOfEntries; ++i) {
-          if (isCentralDirSignature(centralDirectory, recodOffset)) {
+          if (doubleBuffer.isCentralDirSignature()) {
             doubleBuffer.ensureAvailable(46, buffer);
             
             int versionNeededToExtract = doubleBuffer.readInt2(6);
@@ -103,13 +100,8 @@ public class JarScanner2 {
     }
   }
   
-
-  private boolean isEndOfCentralDirSignature(byte[] b) {
+    private boolean isEndOfCentralDirSignature(byte[] b) {
     return startsWit4h(b, b.length - 22, END_OF_CENTRAL_DIR_SIGNATURE);
-  }
-  
-  private boolean isCentralDirSignature(byte[] bytes, int offset) {
-    return startsWit4h(bytes, offset, CENTRAL_DIR_SIGNATURE);
   }
   
   private boolean startsWit4h(byte[] bytes, int offset, byte[] prefix) {
@@ -119,13 +111,7 @@ public class JarScanner2 {
         && bytes[offset + 3] == prefix[3];
   }
   
-  private boolean startsWit4h(byte[] bytes, byte[] prefix) {
-    return bytes[0] == prefix[0]
-        && bytes[1] == prefix[1]
-        && bytes[2] == prefix[2]
-        && bytes[3] == prefix[3];
-  }
-  
+
   /**
    * This class allows us to always read in xk chunks without having to copy
    * what we have already read.
@@ -219,7 +205,14 @@ public class JarScanner2 {
         return new String(buffer, 0, length, StandardCharsets.UTF_8);
       }
     }
-
+    
+    private boolean isCentralDirSignature() {
+      return this.readByte(0) == CENTRAL_DIR_SIGNATURE[0]
+          && this.readByte(1) == CENTRAL_DIR_SIGNATURE[1]
+          && this.readByte(2) == CENTRAL_DIR_SIGNATURE[2]
+          && this.readByte(3) == CENTRAL_DIR_SIGNATURE[3];
+    }
+    
     private int readInt4(int offset) {
       // TODO long
       return readByte(offset)
