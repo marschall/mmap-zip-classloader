@@ -8,6 +8,7 @@ import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -42,7 +43,7 @@ public class JarScanner2 {
       int position = (int) max(0, size - 8192);
       buffer.position(position);
       buffer.get(front, 0, (int) min(size, 8192));
-      if (isEndOfCentralDirSignature(front)) {
+      if (isEndOfCentralDirSignature(front, (int) min(size, front.length))) {
         DoubleBuffer doubleBuffer = new DoubleBuffer(front);
         doubleBuffer.position(8192 - 22);
         
@@ -54,7 +55,7 @@ public class JarScanner2 {
         if (centralDirectoryOffset >= size - 8192) {
           // we just got lucky and the central directory is in the chunk we read
           // TODO optimize for case were central directory is in second last chunk
-          doubleBuffer.position((int) (size + 8192 - centralDirectoryOffset));
+          doubleBuffer.position(8192- (int) (size - centralDirectoryOffset));
         } else {
           buffer.position(centralDirectoryOffset);
           buffer.get(front, 0, 8192);
@@ -81,12 +82,17 @@ public class JarScanner2 {
             doubleBuffer.ensureAvailable(46 + fileNameLength + fileCommentLength, buffer);
             
             String fileName = doubleBuffer.readString(fileNameLength, 46);
-            if (fileName.length() != fileNameLength) {
-              throw new RuntimeException();
-            }
+//            boolean c = fileName.contains("=");
+//            if (fileName.length() != fileNameLength) {
+//              throw new RuntimeException();
+//            }
             offsetMap.put(fileName, relativeOffsetOfLocalHeader);
             
-//            System.out.println(fileName);
+//            if (i == 93) {
+//              for (String each : offsetMap.keySet()) {
+//                System.out.println(each);
+//              }
+//            }
             
             doubleBuffer.incrementPostion(46 + fileNameLength + extraFieldLength + fileCommentLength);
             
@@ -103,8 +109,8 @@ public class JarScanner2 {
     }
   }
   
-    private boolean isEndOfCentralDirSignature(byte[] b) {
-    return startsWit4h(b, b.length - 22, END_OF_CENTRAL_DIR_SIGNATURE);
+    private boolean isEndOfCentralDirSignature(byte[] b, int bufferLength) {
+    return startsWit4h(b, bufferLength - 22, END_OF_CENTRAL_DIR_SIGNATURE);
   }
   
   private boolean startsWit4h(byte[] bytes, int offset, byte[] prefix) {
@@ -121,6 +127,7 @@ public class JarScanner2 {
    */
   static final class DoubleBuffer {
     
+    private static final Charset CHARSET = StandardCharsets.ISO_8859_1;
     private byte[] front;
     private byte[] back;
     private int position;
@@ -177,10 +184,10 @@ public class JarScanner2 {
         this.back = new byte[this.front.length];
       }
       
-      int newPosition = min(buffer.position() + front.length, buffer.limit());
-      int length = min(back.length, buffer.limit() - newPosition);
+//      int newPosition = min(buffer.position() + front.length, buffer.limit());
+//      buffer.position(newPosition);
+      int length = min(back.length, buffer.limit() - buffer.position());
      
-      buffer.position(newPosition);
       buffer.get(back, 0, length);
       
       return length;
@@ -197,17 +204,17 @@ public class JarScanner2 {
     String readString(int length, int offset) {
       if (this.position + offset + length < this.front.length) {
         // all if 1st buffer
-        return new String(this.front, this.position + offset, length, StandardCharsets.UTF_8);
+        return new String(this.front, this.position + offset, length, CHARSET);
       } else if (this.position + offset >= this.front.length) {
         // all in 2nd buffer
-        return new String(this.back, this.position + offset - this.front.length, length, StandardCharsets.UTF_8);
+        return new String(this.back, this.position + offset - this.front.length, length, CHARSET);
       } else {
         // have to copy
         // TODO high off-by-one chance
         byte[] buffer = new byte[length];
         System.arraycopy(this.front, this.position + offset, buffer, 0, this.front.length - offset - this.position);
         System.arraycopy(this.back, 0, buffer, this.front.length - offset - this.position, this.position + offset + length - this.front.length);
-        return new String(buffer, 0, length, StandardCharsets.UTF_8);
+        return new String(buffer, 0, length, CHARSET);
       }
     }
     
@@ -246,10 +253,12 @@ public class JarScanner2 {
     JarScanner2 scanner = new JarScanner2();
     
     String home = System.getProperty("user.home");
-    List<String> paths = Arrays.asList("/Library/Java/JavaVirtualMachines/jdk1.8.0.jdk/Contents/Home/jre/lib/rt.jar",
-        "target/mmap-zip-classloader-0.1.0-SNAPSHOT.jar",
-        home + "/.m2/repository/org/jboss/logging/jboss-logging/3.1.3.GA/jboss-logging-3.1.3.GA.jar",
-        home + "/.m2/repository/org/jboss/jboss-vfs/3.2.0.Beta1/jboss-vfs-3.2.0.Beta1.jar");
+    List<String> paths = Arrays.asList(
+//        "/Library/Java/JavaVirtualMachines/jdk1.8.0.jdk/Contents/Home/jre/lib/rt.jar",
+//        "target/mmap-zip-classloader-0.1.0-SNAPSHOT.jar",
+//        home + "/.m2/repository/org/jboss/logging/jboss-logging/3.1.3.GA/jboss-logging-3.1.3.GA.jar"
+        home + "/.m2/repository/org/jboss/jboss-vfs/3.2.0.Beta1/jboss-vfs-3.2.0.Beta1.jar"
+        );
     for (String each : paths) {
       scanPath(scanner, each);
     }
