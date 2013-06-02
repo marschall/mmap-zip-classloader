@@ -5,15 +5,15 @@
   <artifactId>mmap-zip-classloader</artifactId>
   <version>0.1.0-SNAPSHOT</version>
   <packaging>jar</packaging>
-  <name>OSGi Remoting EJB</name>
-  <description>An OSGi remoting implementaiton that delegates to EJB Remtoing</description>
+  <name>mmap() Zip ClassLoader</name>
+  <description>A classloader for ZIP files that does not build on java.util.JarFile</description>
   <inceptionYear>2013</inceptionYear>
 
   <url>https://github.com/marschall/osgi-remoting-ejb</url>
 
   <scm>
-    <connection>scm:git:git@github.com:marschall/osgi-remoting-ejb.git</connection>
-    <developerConnection>scm:git:git@github.com:marschall/osgi-remoting-ejb.git</developerConnection>
+    <connection>scm:git:git@github.com:marschall/mmap-zip-classloader.git</connection>
+    <developerConnection>scm:git:git@github.com:marschall/mmap-zip-classloader.git</developerConnection>
     <url>${project.url}</url>
     <tag>HEAD</tag>
   </scm>
@@ -63,11 +63,19 @@
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+          <archive>
+            <index>true</index>
+          </archive>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
         <configuration>
           <links>
-            <link>http://docs.oracle.com/javase/6/docs/api/</link>
-            <link>http://www.osgi.org/javadoc/r4v43/</link>
+            <link>http://docs.oracle.com/javase/7/docs/api/</link>
           </links>
         </configuration>
         <executions>
