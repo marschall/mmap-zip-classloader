@@ -54,8 +54,10 @@ public class JarScanner2 {
         int centralDirectorySize = doubleBuffer.readInt4(12);
         int centralDirectoryOffset = doubleBuffer.readInt4(16);
         
-        
-        if (centralDirectoryOffset >= size - 8192) {
+        if (size <= 8192) {
+          // we already read the whole file
+          doubleBuffer.position(centralDirectoryOffset);
+        } else if (centralDirectoryOffset >= size - 8192) {
           // we just got lucky and the central directory is in the chunk we read
           // TODO optimize for case were central directory is in second last chunk
           doubleBuffer.position(8192 - (int) (size - centralDirectoryOffset));
@@ -263,13 +265,13 @@ public class JarScanner2 {
     
     String home = System.getProperty("user.home");
     List<String> paths = Arrays.asList(
+            "target/mmap-zip-classloader-0.1.0-SNAPSHOT.jar",
 //        "/Library/Java/JavaVirtualMachines/jdk1.8.0.jdk/Contents/Home/jre/lib/rt.jar",
-//          "/opt/jdk1.8.0/jre/lib/rt.jar",
-        "target/mmap-zip-classloader-0.1.0-SNAPSHOT.jar"
+          "/opt/jdk1.8.0/jre/lib/rt.jar",
 //        home + "/.m2/repository/org/jboss/logging/jboss-logging/3.1.3.GA/jboss-logging-3.1.3.GA.jar",
 //        home + "/.m2/repository/org/jboss/jboss-vfs/3.2.0.Beta1/jboss-vfs-3.2.0.Beta1.jar"
-//        home + "/.m2/repository/org/jboss/logging/jboss-logging/3.1.2.GA/jboss-logging-3.1.2.GA.jar",
-//        home + "/.m2/repository/org/jboss/jboss-vfs/3.1.0.Final/jboss-vfs-3.1.0.Final.jar"
+        home + "/.m2/repository/org/jboss/logging/jboss-logging/3.1.2.GA/jboss-logging-3.1.2.GA.jar",
+        home + "/.m2/repository/org/jboss/jboss-vfs/3.1.0.Final/jboss-vfs-3.1.0.Final.jar"
         );
     for (String each : paths) {
       scanPath(scanner, each);
