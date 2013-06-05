@@ -131,12 +131,12 @@ public class JarScanner {
     String home = System.getProperty("user.home");
     List<String> paths = Arrays.asList(
 //        "/Library/Java/JavaVirtualMachines/jdk1.8.0.jdk/Contents/Home/jre/lib/rt.jar",
-        "/opt/jdk1.8.0/jre/lib/rt.jar",
-        "target/mmap-zip-classloader-0.1.0-SNAPSHOT.jar",
+        "/opt/jdk1.8.0/jre/lib/rt.jar"
+//        "target/mmap-zip-classloader-0.1.0-SNAPSHOT.jar",
 //        home + "/.m2/repository/org/jboss/logging/jboss-logging/3.1.3.GA/jboss-logging-3.1.3.GA.jar",
 //        home + "/.m2/repository/org/jboss/jboss-vfs/3.2.0.Beta1/jboss-vfs-3.2.0.Beta1.jar",
-        home + "/.m2/repository/org/jboss/logging/jboss-logging/3.1.2.GA/jboss-logging-3.1.2.GA.jar",
-        home + "/.m2/repository/org/jboss/jboss-vfs/3.1.0.Final/jboss-vfs-3.1.0.Final.jar"
+//        home + "/.m2/repository/org/jboss/logging/jboss-logging/3.1.2.GA/jboss-logging-3.1.2.GA.jar",
+//        home + "/.m2/repository/org/jboss/jboss-vfs/3.1.0.Final/jboss-vfs-3.1.0.Final.jar"
         );
     for (String each : paths) {
       scanPath(scanner, each);

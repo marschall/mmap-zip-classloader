@@ -43,9 +43,12 @@ public class JarScanner2 {
       int position = (int) max(0, size - 8192);
       buffer.position(position);
       buffer.get(front, 0, (int) min(size, 8192));
-      if (isEndOfCentralDirSignature(front, (int) min(size, front.length))) {
+      
+      int endOfCentralDirectoryIndex = scanForEndOfCentralDirectorySignature(front);
+      
+      if (endOfCentralDirectoryIndex != -1) {
         DoubleBuffer doubleBuffer = new DoubleBuffer(front);
-        doubleBuffer.position(8192 - 22);
+        doubleBuffer.position(endOfCentralDirectoryIndex);
         
         int numberOfEntries = doubleBuffer.readInt2(8);
         int centralDirectorySize = doubleBuffer.readInt4(12);
@@ -55,7 +58,7 @@ public class JarScanner2 {
         if (centralDirectoryOffset >= size - 8192) {
           // we just got lucky and the central directory is in the chunk we read
           // TODO optimize for case were central directory is in second last chunk
-          doubleBuffer.position(8192- (int) (size - centralDirectoryOffset));
+          doubleBuffer.position(8192 - (int) (size - centralDirectoryOffset));
         } else {
           buffer.position(centralDirectoryOffset);
           buffer.get(front, 0, 8192);
@@ -65,8 +68,8 @@ public class JarScanner2 {
         
         Map<String, Integer> offsetMap = new HashMap<>(centralDirectoryOffset);
         for (int i = 0; i < numberOfEntries; ++i) {
+          doubleBuffer.ensureAvailable(46, buffer);
           if (doubleBuffer.isCentralDirSignature()) {
-            doubleBuffer.ensureAvailable(46, buffer);
             
             int versionNeededToExtract = doubleBuffer.readInt2(6);
             if (versionNeededToExtract != 10) {
@@ -82,36 +85,27 @@ public class JarScanner2 {
             doubleBuffer.ensureAvailable(46 + fileNameLength + fileCommentLength, buffer);
             
             String fileName = doubleBuffer.readString(fileNameLength, 46);
-//            boolean c = fileName.contains("=");
-//            if (fileName.length() != fileNameLength) {
-//              throw new RuntimeException();
-//            }
             offsetMap.put(fileName, relativeOffsetOfLocalHeader);
-            
-//            if (i == 93) {
-//              for (String each : offsetMap.keySet()) {
-//                System.out.println(each);
-//              }
-//            }
             
             doubleBuffer.incrementPostion(46 + fileNameLength + extraFieldLength + fileCommentLength);
             
           } else {
-            throw new CorruptFileException("invalid central directory header at: " + centralDirectoryOffset);
+            throw new CorruptFileException("invalid central directory header number: " + i);
           }
         }
         
         
       } else {
-        // TODO scan slowly
+        // TODO load another buffer
         throw new UnsupportedFeatureException("expected end of central dir at end of file");
       }
     }
   }
   
-    private boolean isEndOfCentralDirSignature(byte[] b, int bufferLength) {
+  private boolean isEndOfCentralDirSignature(byte[] b, int bufferLength) {
     return startsWit4h(b, bufferLength - 22, END_OF_CENTRAL_DIR_SIGNATURE);
   }
+    
   
   private boolean startsWit4h(byte[] bytes, int offset, byte[] prefix) {
     return bytes[offset] == prefix[0]
@@ -120,6 +114,19 @@ public class JarScanner2 {
         && bytes[offset + 3] == prefix[3];
   }
   
+  private int scanForEndOfCentralDirectorySignature(byte[] b) {
+    for (int i = b.length - 22; i > 0; --i) {
+      if (b[i] == END_OF_CENTRAL_DIR_SIGNATURE[0]
+              && b[i + 1] == END_OF_CENTRAL_DIR_SIGNATURE[1]
+              && b[i + 2] == END_OF_CENTRAL_DIR_SIGNATURE[2]
+              && b[i + 3] == END_OF_CENTRAL_DIR_SIGNATURE[3]) {
+        return i;
+      }
+    }
+    
+    
+    return -1;
+  }
 
   /**
    * This class allows us to always read in xk chunks without having to copy
@@ -127,6 +134,7 @@ public class JarScanner2 {
    */
   static final class DoubleBuffer {
     
+    // TODO figure out actual character set
     private static final Charset CHARSET = StandardCharsets.ISO_8859_1;
     private byte[] front;
     private byte[] back;
@@ -256,9 +264,12 @@ public class JarScanner2 {
     String home = System.getProperty("user.home");
     List<String> paths = Arrays.asList(
 //        "/Library/Java/JavaVirtualMachines/jdk1.8.0.jdk/Contents/Home/jre/lib/rt.jar",
-        "target/mmap-zip-classloader-0.1.0-SNAPSHOT.jar",
-        home + "/.m2/repository/org/jboss/logging/jboss-logging/3.1.3.GA/jboss-logging-3.1.3.GA.jar",
-        home + "/.m2/repository/org/jboss/jboss-vfs/3.2.0.Beta1/jboss-vfs-3.2.0.Beta1.jar"
+//          "/opt/jdk1.8.0/jre/lib/rt.jar",
+        "target/mmap-zip-classloader-0.1.0-SNAPSHOT.jar"
+//        home + "/.m2/repository/org/jboss/logging/jboss-logging/3.1.3.GA/jboss-logging-3.1.3.GA.jar",
+//        home + "/.m2/repository/org/jboss/jboss-vfs/3.2.0.Beta1/jboss-vfs-3.2.0.Beta1.jar"
+//        home + "/.m2/repository/org/jboss/logging/jboss-logging/3.1.2.GA/jboss-logging-3.1.2.GA.jar",
+//        home + "/.m2/repository/org/jboss/jboss-vfs/3.1.0.Final/jboss-vfs-3.1.0.Final.jar"
         );
     for (String each : paths) {
       scanPath(scanner, each);
