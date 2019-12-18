@@ -6,14 +6,14 @@ This is an experiment to build a ClassLoader for zip files that is not based on 
 Mandatory
 ---------
 * parallel capable
+* multi release JAR
 
 Optional
 --------
 * concurrent file access (requires `java.nio.channels.FileChannel`)
-* aggressive closing of files
 
 Low Prio / No Idea
 ------------------
 * ZIP64
-* `INDEX.LIST` support (seems only useful for [applets](http://docs.oracle.com/javase/7/docs/technotes/guides/jar/jar.html#JAR%20Index))
+* `INDEX.LIST` support (seems only useful for [applets](https://docs.oracle.com/en/java/javase/11/docs/specs/jar/jar.html#jar-index))
 

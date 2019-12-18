@@ -13,7 +13,8 @@ import java.util.List;
 final class JarScanner3 {
 
   // 0x06054b50
-  private static final byte[] END_OF_CENTRAL_DIR_SIGNATURE = new byte[]{0x50, 0x4b, 0x05, 0x06};
+//  private static final byte[] END_OF_CENTRAL_DIR_SIGNATURE = new byte[]{0x50, 0x4b, 0x05, 0x06};
+  private static final int END_OF_CENTRAL_DIR_SIGNATURE = 0x06054b50;
 
   public void scan(Path p) throws IOException {
     try (FileChannel channel = FileChannel.open(p, StandardOpenOption.READ)) {
@@ -23,7 +24,7 @@ final class JarScanner3 {
       }
       // TODO free
       MappedByteBuffer buffer = channel.map(MapMode.READ_ONLY, 0L, size);
-      System.out.println(this.findEndOfCentralDirectoryRecord(buffer, (int) size));
+      System.out.println(this.findEndOfCentralDirectoryRecord(buffer, (int) size) + " of " + size);
     }
   }
 
@@ -49,10 +50,12 @@ final class JarScanner3 {
   private int findEndOfCentralDirectoryRecord(MappedByteBuffer buffer, int size) {
     // TODO four bytes at a time
     for (int i = size - 1; i > 3; i--) {
-      if ((buffer.get(i - 3) == END_OF_CENTRAL_DIR_SIGNATURE[0])
-              & (buffer.get(i - 2) == END_OF_CENTRAL_DIR_SIGNATURE[1])
-              & (buffer.get(i - 1) == END_OF_CENTRAL_DIR_SIGNATURE[2])
-              & (buffer.get(i) == END_OF_CENTRAL_DIR_SIGNATURE[3])) {
+
+      int word = (buffer.get(i - 3))
+                 | (buffer.get(i - 2) << 8)
+                 | (buffer.get(i - 1) << 16)
+                 | (buffer.get(i) << 24);
+      if (word == END_OF_CENTRAL_DIR_SIGNATURE) {
         return i - 3;
       }
     }
