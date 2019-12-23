@@ -9,10 +9,14 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.zip.ZipException;
 
 final class JarScanner3 {
+
+  private static final int CENTRAL_FILE_HEADER_SIGNATURE = 0x02014b50;
 
   private static final int END_OF_CENTRAL_DIR_SIGNATURE = 0x06054b50;
 
@@ -50,17 +54,40 @@ final class JarScanner3 {
 
   private static List<CentralDirectoryHeader> readCentralDirectoryRecord(
           MappedByteBuffer buffer,
-          EndOfCentralDirectoryRecord endOfCentralDirectoryRecord) {
+          EndOfCentralDirectoryRecord endOfCentralDirectoryRecord) throws ZipException {
 
 
     int numberOfRecords = endOfCentralDirectoryRecord.getNumberOfRecords();
     List<CentralDirectoryHeader> headers = new ArrayList<>(numberOfRecords);
     int offset = endOfCentralDirectoryRecord.getOffset();
+
+    Set<Integer> compressionMethods = new HashSet<>();
+
     for (int i = 0; i < numberOfRecords; i++) {
+      int signature = readInt4(buffer, offset);
+      if (signature != CENTRAL_FILE_HEADER_SIGNATURE) {
+        throw new ZipException("corrupt file header");
+      }
+      int versionMadeBy = readInt2(buffer, offset + 4);
+      int versionNeededToExtract = readInt2(buffer, offset + 6);
+      int generalPurposeBitFlag = readInt2(buffer, offset + 8);
+      int compressionMethod  = readInt2(buffer, offset + 10);
+      int fileLastModificationTime = readInt2(buffer, offset + 12);
+      int fileLastModificationDate = readInt2(buffer, offset + 14);
+      int crc32 = readInt4(buffer, offset + 16);
+      int compressedSize = readInt4(buffer, offset + 20);
+      int uncompressedSize = readInt4(buffer, offset + 24);
+
+      int fileNameLength = readInt2(buffer, offset + 28);
+      int extraFieldLength = readInt2(buffer, offset + 30);
+      int fileCommentLength = readInt2(buffer, offset + 32);
+
 //      CentralDirectoryHeader header = ;
 //      headers.add(header);
-//      offset += ;
+      compressionMethods.add(compressionMethod);
+      offset += 46 + fileNameLength + extraFieldLength + fileCommentLength;
     }
+    System.out.println("compression methods: " + compressionMethods);
     return headers;
   }
 
@@ -111,7 +138,6 @@ final class JarScanner3 {
   }
 
   private static int findEndOfCentralDirectoryRecord(MappedByteBuffer buffer, int size) throws ZipException {
-    // TODO four bytes at a time
     int signgureLength = 4;
     for (int i = ((size - END_OF_CENTRAL_DIR_SIZE) + signgureLength) - 1; i > 3; i--) {
 
@@ -127,28 +153,22 @@ final class JarScanner3 {
   }
 
   private static EndOfCentralDirectoryRecord readEndOfCentralDirectoryRecord(MappedByteBuffer buffer, int offset) throws ZipException {
-    int localOffset = offset;
 
-    int signagure = readInt4(buffer, localOffset);
-    localOffset += 4;
+    int signagure = readInt4(buffer, offset);
 
-    int numberOfDisks = readInt2(buffer, localOffset);
+    int numberOfDisks = readInt2(buffer, offset + 4);
     if (numberOfDisks != 0) {
       throw new ZipException("multiple disks not supported");
     }
-    localOffset += 2;
 
-    int centralDirectoryRecordDisk = readInt2(buffer, localOffset);
+    int centralDirectoryRecordDisk = readInt2(buffer, offset + 6);
     if (centralDirectoryRecordDisk != 0) {
       throw new ZipException("multiple disks not supported");
     }
-    localOffset += 2;
 
-    int numberOfCentralDirectoryRecordsOnThisDisk = readInt2(buffer, localOffset);
-    localOffset += 2;
+    int numberOfCentralDirectoryRecordsOnThisDisk = readInt2(buffer, offset + 8);
 
-    int totalNumberOfCentralDirectoryRecords = readInt2(buffer, localOffset);
-    localOffset += 2;
+    int totalNumberOfCentralDirectoryRecords = readInt2(buffer, offset + 10);
     if (totalNumberOfCentralDirectoryRecords != numberOfCentralDirectoryRecordsOnThisDisk) {
       throw new ZipException("number of central directory records don't match");
     }
@@ -156,13 +176,11 @@ final class JarScanner3 {
       throw new ZipException("too many central directory entries");
     }
 
-    int centralDirectoryRecordSize = readInt4(buffer, localOffset);
-    localOffset += 4;
+    int centralDirectoryRecordSize = readInt4(buffer, offset + 12);
 
-    int centralDirectoryRecordOffset = readInt4(buffer, localOffset);
-    localOffset += 4;
+    int centralDirectoryRecordOffset = readInt4(buffer, offset + 16);
 
-    int commentLength = readInt2(buffer, localOffset);
+    int commentLength = readInt2(buffer, offset + 20);
     if (commentLength != 0) {
       System.out.println("comment length: " + commentLength);
     }
@@ -180,9 +198,10 @@ final class JarScanner3 {
         | (Byte.toUnsignedInt(buffer.get(offset + 1)) << 8)
         | (Byte.toUnsignedInt(buffer.get(offset + 2)) << 16)
         | (Byte.toUnsignedInt(buffer.get(offset + 3)) << 24);
-    if (value < 0) {
-      throw illegalStateExceptionValueTooLarge();
-    }
+    // TODO signed vs unsigend
+//    if (value < 0) {
+//      throw illegalStateExceptionValueTooLarge();
+//    }
     return value;
   }
 

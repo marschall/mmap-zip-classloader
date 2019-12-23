@@ -25,7 +25,7 @@ final class EndOfCentralDirectoryRecord {
   }
 
   boolean isEmpty() {
-    return this.numberOfRecords > 0;
+    return this.numberOfRecords == 0;
   }
 
 }
