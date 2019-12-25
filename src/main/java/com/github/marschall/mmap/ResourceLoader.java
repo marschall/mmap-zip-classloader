@@ -21,11 +21,11 @@ final class ResourceLoader {
     return null;
   }
 
-  InputStream findStringResourceAsStream(String path) {
+  InputStream findResourceAsStream(String path) {
     return null;
   }
 
-  URL findStringResource(String path) {
+  URL findResource(String path) {
     return null;
   }
   

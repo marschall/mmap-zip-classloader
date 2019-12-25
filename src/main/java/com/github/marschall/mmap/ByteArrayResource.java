@@ -23,5 +23,9 @@ final class ByteArrayResource {
   int getLength() {
     return this.length;
   }
+  
+  void release() {
+    // TODO return to pool
+  }
 
 }

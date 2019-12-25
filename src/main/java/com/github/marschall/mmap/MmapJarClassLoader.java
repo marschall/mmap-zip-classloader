@@ -5,6 +5,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
@@ -41,7 +43,11 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
     if (moduleName == null) {
       ByteArrayResource resource = this.findByteArrayResource(name);
       if (resource != null) {
-        return this.defineClass(name, resource);
+        try {
+          return this.defineClass(name, resource);
+        } finally {
+          resource.release();
+        }
       }
     }
     return null;
@@ -52,7 +58,11 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
     Objects.requireNonNull(name, "name");
     ByteArrayResource resource = this.findByteArrayResource(name);
     if (resource != null) {
-      return this.defineClass(name, resource);
+      try {
+        return this.defineClass(name, resource);
+      } finally {
+        resource.release();
+      }
     } else {
       throw new ClassNotFoundException(name);
     }
@@ -86,11 +96,11 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
     Object loaders = this.resourceLoaders.get(name);
     if (loaders instanceof ResourceLoader) {
       ResourceLoader loader = (ResourceLoader) loaders;
-      return loader.findStringResource(name);
+      return loader.findResource(name);
     } else if (loaders instanceof List) {
       for (Object each : (List<?>) loaders) {
         ResourceLoader loader = (ResourceLoader) each;
-        URL resource = loader.findStringResource(name);
+        URL resource = loader.findResource(name);
         if (resource != null) {
           return resource;
         }
@@ -102,8 +112,24 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
   @Override
   public Enumeration<URL> getResources(String name) throws IOException {
     Objects.requireNonNull(name, "name");
-    // TODO Auto-generated method stub
-    return super.getResources(name);
+    List<URL> resources = new ArrayList<>();
+    Object loaders = this.resourceLoaders.get(name);
+    if (loaders instanceof ResourceLoader) {
+      ResourceLoader loader = (ResourceLoader) loaders;
+      URL resource = loader.findResource(name);
+      if (resource != null) {
+        resources.add(resource);
+      }
+    } else if (loaders instanceof List) {
+      for (Object each : (List<?>) loaders) {
+        ResourceLoader loader = (ResourceLoader) each;
+        URL resource = loader.findResource(name);
+        if (resource != null) {
+          resources.add(resource);
+        }
+      }
+    }
+    return Collections.enumeration(resources);
   }
 
   @Override
@@ -112,11 +138,11 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
     Object loaders = this.resourceLoaders.get(name);
     if (loaders instanceof ResourceLoader) {
       ResourceLoader loader = (ResourceLoader) loaders;
-      return loader.findStringResourceAsStream(name);
+      return loader.findResourceAsStream(name);
     } else if (loaders instanceof List) {
       for (Object each : (List<?>) loaders) {
         ResourceLoader loader = (ResourceLoader) each;
-        InputStream resource = loader.findStringResourceAsStream(name);
+        InputStream resource = loader.findResourceAsStream(name);
         if (resource != null) {
           return resource;
         }
@@ -142,10 +168,22 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
         }
       }
     }
+    List<IOException> caughtExceptions = new ArrayList<>();
     for (ResourceLoader resourceLoader : toClose) {
-      resourceLoader.close();
+      // even if one unmap() fails make sure we try to unmap() all
+      try {
+        resourceLoader.close();
+      } catch (IOException e) {
+        caughtExceptions.add(e);
+      }
     }
-
+    if (!caughtExceptions.isEmpty()) {
+      IOException exception = new IOException("failed to close class loader");
+      for (IOException caught : caughtExceptions) {
+        exception.addSuppressed(caught);
+      }
+      throw exception;
+    }
   }
 
 }
