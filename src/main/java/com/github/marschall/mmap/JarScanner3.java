@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
@@ -53,8 +54,8 @@ final class JarScanner3 {
   }
 
   private static List<CentralDirectoryHeader> readCentralDirectoryRecord(
-          MappedByteBuffer buffer,
-          EndOfCentralDirectoryRecord endOfCentralDirectoryRecord) throws ZipException {
+      MappedByteBuffer buffer,
+      EndOfCentralDirectoryRecord endOfCentralDirectoryRecord) throws ZipException {
 
 
     int numberOfRecords = endOfCentralDirectoryRecord.getNumberOfRecords();
@@ -71,6 +72,19 @@ final class JarScanner3 {
       int versionMadeBy = readInt2(buffer, offset + 4);
       int versionNeededToExtract = readInt2(buffer, offset + 6);
       int generalPurposeBitFlag = readInt2(buffer, offset + 8);
+
+      //      if (GeneralPurposeBitFlag.isEncrypted(generalPurposeBitFlag)) {
+      //        System.out.println("encrypted");
+      //      }
+      //
+      //      if (GeneralPurposeBitFlag.areFieldsZeroInLocalHeader(generalPurposeBitFlag)) {
+      //        System.out.println("local fields are zero");
+      //      }
+      //      
+      //      if (!GeneralPurposeBitFlag.isUtf8(generalPurposeBitFlag)) {
+      //        System.out.println("not utf-8");
+      //      }
+
       int compressionMethod  = readInt2(buffer, offset + 10);
       int fileLastModificationTime = readInt2(buffer, offset + 12);
       int fileLastModificationDate = readInt2(buffer, offset + 14);
@@ -82,8 +96,16 @@ final class JarScanner3 {
       int extraFieldLength = readInt2(buffer, offset + 30);
       int fileCommentLength = readInt2(buffer, offset + 32);
 
-//      CentralDirectoryHeader header = ;
-//      headers.add(header);
+      int startDiskNumber = readInt2(buffer, offset + 34);
+      int internalFileAttributes = readInt2(buffer, offset + 36);
+      int externalFileAttributes = readInt4(buffer, offset + 38);
+      int localHeaderOffset = readInt4(buffer, offset + 42);
+      
+      String fileName = readString(buffer, offset + 46, fileNameLength);
+
+      CentralDirectoryHeader header = new CentralDirectoryHeader(fileName, compressionMethod, crc32, compressedSize, uncompressedSize, localHeaderOffset);
+      headers.add(header);
+      
       compressionMethods.add(compressionMethod);
       offset += 46 + fileNameLength + extraFieldLength + fileCommentLength;
     }
@@ -92,7 +114,7 @@ final class JarScanner3 {
   }
 
   public static void main(String[] args) throws IOException {
-    scanLinux1();
+    scanMac1();
   }
 
   private static void scanLinux1() throws IOException {
@@ -101,16 +123,16 @@ final class JarScanner3 {
 
     String home = System.getProperty("user.home");
     List<String> paths = Arrays.asList(
-            "target/mmap-zip-classloader-0.1.0-SNAPSHOT.jar",
-            home + "/bin/java/zulu7.31.0.5-ca-jdk7.0.232-linux_x64/jre/lib/rt.jar",
-            home + "/bin/java/zulu6.18.0.3-jdk6.0.99-linux_x64/jre/lib/rt.jar",
-            home + "/bin/java/zulu8.40.0.25-ca-jdk8.0.222-linux_x64/jre/lib/rt.jar",
-            home + "/bin/java/graalvm-ce-19.2.0.1/jre/lib/rt.jar",
-            home + "/bin/java/Alibaba_Dragonwell_8.1.1-GA_Linux_x64/jre/lib/rt.jar",
-            home + "/bin/java/graalvm-ee-19.2.0.1/jre/lib/rt.jar",
-            home + "/.m2/repository/org/jboss/jboss-vfs/3.2.14.Final/jboss-vfs-3.2.14.Final.jar",
-            home + "/.m2/repository/org/jboss/logging/jboss-logging/3.4.0.Final/jboss-logging-3.4.0.Final.jar"
-            );
+        "target/mmap-zip-classloader-0.1.0-SNAPSHOT.jar",
+        home + "/bin/java/zulu7.31.0.5-ca-jdk7.0.232-linux_x64/jre/lib/rt.jar",
+        home + "/bin/java/zulu6.18.0.3-jdk6.0.99-linux_x64/jre/lib/rt.jar",
+        home + "/bin/java/zulu8.40.0.25-ca-jdk8.0.222-linux_x64/jre/lib/rt.jar",
+        home + "/bin/java/graalvm-ce-19.2.0.1/jre/lib/rt.jar",
+        home + "/bin/java/Alibaba_Dragonwell_8.1.1-GA_Linux_x64/jre/lib/rt.jar",
+        home + "/bin/java/graalvm-ee-19.2.0.1/jre/lib/rt.jar",
+        home + "/.m2/repository/org/jboss/jboss-vfs/3.2.14.Final/jboss-vfs-3.2.14.Final.jar",
+        home + "/.m2/repository/org/jboss/logging/jboss-logging/3.4.0.Final/jboss-logging-3.4.0.Final.jar"
+        );
     for (String each : paths) {
       scanPath(scanner, each);
     }
@@ -123,14 +145,15 @@ final class JarScanner3 {
 
     String home = System.getProperty("user.home");
     List<String> paths = Arrays.asList(
-            "target/mmap-zip-classloader-0.1.0-SNAPSHOT.jar",
-            "/Library/Java/JavaVirtualMachines/jdk1.8.0.jdk/Contents/Home/jre/lib/rt.jar"
-            //  "/opt/jdk1.8.0/jre/lib/rt.jar",
-            //home + "/.m2/repository/org/jboss/logging/jboss-logging/3.1.3.GA/jboss-logging-3.1.3.GA.jar",
-            //home + "/.m2/repository/org/jboss/jboss-vfs/3.2.0.Beta1/jboss-vfs-3.2.0.Beta1.jar"
-            //home + "/.m2/repository/org/jboss/logging/jboss-logging/3.1.2.GA/jboss-logging-3.1.2.GA.jar",
-            //home + "/.m2/repository/org/jboss/jboss-vfs/3.1.0.Final/jboss-vfs-3.1.0.Final.jar"
-            );
+        "target/mmap-zip-classloader-0.1.0-SNAPSHOT.jar",
+        "/Library/Java/JavaVirtualMachines/jdk1.8.0_192.jdk/Contents/Home/jre/lib/rt.jar",
+        "/Library/Java/JavaVirtualMachines/jdk1.7.0_79.jdk/Contents/Home/jre/lib/rt.jar",
+        "/Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home/jre/lib/rt.jar",
+        "/Library/Java/JavaVirtualMachines/1.7.0.jdk/Contents/Home/jre/lib/rt.jar",
+        //  "/opt/jdk1.8.0/jre/lib/rt.jar",
+        home + "/.m2/repository/org/jboss/logging/jboss-logging/3.4.0.Final/jboss-logging-3.4.0.Final.jar",
+        home + "/.m2/repository/org/jboss/jboss-vfs/3.2.9.Final/jboss-vfs-3.2.9.Final.jar"
+        );
     for (String each : paths) {
       scanPath(scanner, each);
     }
@@ -142,9 +165,9 @@ final class JarScanner3 {
     for (int i = ((size - END_OF_CENTRAL_DIR_SIZE) + signgureLength) - 1; i > 3; i--) {
 
       int word = Byte.toUnsignedInt(buffer.get(i - 3))
-                 | (Byte.toUnsignedInt(buffer.get(i - 2)) << 8)
-                 | (Byte.toUnsignedInt(buffer.get(i - 1)) << 16)
-                 | (Byte.toUnsignedInt(buffer.get(i)) << 24);
+          | (Byte.toUnsignedInt(buffer.get(i - 2)) << 8)
+          | (Byte.toUnsignedInt(buffer.get(i - 1)) << 16)
+          | (Byte.toUnsignedInt(buffer.get(i)) << 24);
       if (word == END_OF_CENTRAL_DIR_SIGNATURE) {
         return i - 3;
       }
@@ -190,7 +213,7 @@ final class JarScanner3 {
 
   private static int readInt2(MappedByteBuffer buffer, int offset) {
     return Byte.toUnsignedInt(buffer.get(offset))
-            | (Byte.toUnsignedInt(buffer.get(offset + 1)) << 8);
+        | (Byte.toUnsignedInt(buffer.get(offset + 1)) << 8);
   }
 
   private static int readInt4(MappedByteBuffer buffer, int offset) {
@@ -199,10 +222,19 @@ final class JarScanner3 {
         | (Byte.toUnsignedInt(buffer.get(offset + 2)) << 16)
         | (Byte.toUnsignedInt(buffer.get(offset + 3)) << 24);
     // TODO signed vs unsigend
-//    if (value < 0) {
-//      throw illegalStateExceptionValueTooLarge();
-//    }
+    //    if (value < 0) {
+    //      throw illegalStateExceptionValueTooLarge();
+    //    }
     return value;
+  }
+
+  private static String readString(MappedByteBuffer buffer, int offset, int length) {
+    // TODO fixed in 13
+    byte[] bytes = new byte[length];
+    for (int i = 0; i < length; i++) {
+      bytes[i] = buffer.get(offset + i);
+    }
+    return new String(bytes, StandardCharsets.UTF_8);
   }
 
   private static IllegalStateException illegalStateExceptionValueTooLarge() {

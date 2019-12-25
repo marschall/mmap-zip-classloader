@@ -4,12 +4,12 @@ final class CentralDirectoryHeader {
 
   private final int crc32;
   private final String fileName;
-  private final short compressionMethod;
+  private final int compressionMethod; // TODO short?
   private final int compressedSize;
   private final int uncompressedSize;
   private final int localHeaderOffset;
 
-  CentralDirectoryHeader(String fileName, short compressionMethod, int crc32, int compressedSize, int uncompressedSize, int localHeaderOffset) {
+  CentralDirectoryHeader(String fileName, int compressionMethod, int crc32, int compressedSize, int uncompressedSize, int localHeaderOffset) {
     this.fileName = fileName;
     this.compressionMethod = compressionMethod;
     this.crc32 = crc32;
@@ -26,7 +26,7 @@ final class CentralDirectoryHeader {
     return this.fileName;
   }
 
-  short getCompressionMethod() {
+  int getCompressionMethod() {
     return this.compressionMethod;
   }
 
