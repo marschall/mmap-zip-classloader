@@ -8,12 +8,19 @@ Mandatory
 * parallel capable
 * multi release JAR
 
-Optional
---------
-* concurrent file access (requires `java.nio.channels.FileChannel`)
-
 Low Prio / No Idea
 ------------------
 * ZIP64
 * `INDEX.LIST` support (seems only useful for [applets](https://docs.oracle.com/en/java/javase/11/docs/specs/jar/jar.html#jar-index))
+
+TODO
+----
+* multi release JARs
+* signed JARs
+* permission checks, AccessControlContext
+
+Recommendations
+---------------
+
+* Avoid split packages if possible as they increase lookup time and memory footprint.
 

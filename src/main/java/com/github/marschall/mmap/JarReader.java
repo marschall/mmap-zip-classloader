@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.zip.ZipException;
 
-final class JarScanner3 {
+final class JarReader {
 
   private static final int CENTRAL_FILE_HEADER_SIGNATURE = 0x02014b50;
 
@@ -118,7 +118,7 @@ final class JarScanner3 {
   }
 
   private static void scanLinux1() throws IOException {
-    JarScanner3 scanner = new JarScanner3();
+    JarReader scanner = new JarReader();
 
 
     String home = System.getProperty("user.home");
@@ -140,7 +140,7 @@ final class JarScanner3 {
   }
 
   private static void scanMac1() throws IOException {
-    JarScanner3 scanner = new JarScanner3();
+    JarReader scanner = new JarReader();
 
 
     String home = System.getProperty("user.home");
@@ -241,7 +241,7 @@ final class JarScanner3 {
     return new IllegalStateException("value too large");
   }
 
-  static void scanPath(JarScanner3 scanner, String path) throws IOException {
+  static void scanPath(JarReader scanner, String path) throws IOException {
     long start = System.currentTimeMillis();
     scanner.scan(Paths.get(path));
     long end = System.currentTimeMillis();
