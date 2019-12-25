@@ -1,6 +1,9 @@
 package com.github.marschall.mmap;
 
 final class ByteArrayResource {
+  
+  // java.lang.ClassLoader.defineClass(String, ByteBuffer, ProtectionDomain)
+  // requires a heap ByteBuffer so there is no point in using a ByteBuffer
 
   private final byte[] array;
   private final int offset;

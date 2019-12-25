@@ -25,6 +25,10 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
   // TODO check opening folders as resources
 
   // TODO CharSequence and custom map
+  
+  // expert
+  // - byte[] pool
+  // - ByteBuffer to String
 
   private final Map<String, Object> resourceLoaders;
 
