@@ -42,4 +42,15 @@ final class CentralDirectoryHeader {
     return this.localHeaderOffset;
   }
 
+  boolean isClass() {
+    return fileName.endsWith(".class")
+        // filename is not just .class or path/.class
+        && (fileName.length() > 6 && fileName.charAt(fileName.length() - 7) != '/');
+  }
+
+  String getPackageName() {
+    // TODO subsequence to reduce allocation
+    return fileName.substring(0, fileName.length() - 7);
+  }
+
 }

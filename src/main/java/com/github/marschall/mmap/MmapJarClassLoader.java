@@ -25,7 +25,7 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
   // TODO check opening folders as resources
 
   // TODO CharSequence and custom map
-  
+
   // expert
   // - byte[] pool
   // - ByteBuffer to String
@@ -39,6 +39,15 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
 
   private static Map<String, Object> buildResourceLoaderMap(File[] jarFiles) {
     return null;
+  }
+
+  static Set<String> getPackages(Set<String> packages, List<CentralDirectoryHeader> headers) {
+    for (CentralDirectoryHeader header : headers) {
+      if (header.isClass()) {
+        packages.add(header.getPackageName());
+      }
+    }
+    return packages;
   }
 
   @Override
@@ -78,6 +87,7 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
 
   private ByteArrayResource findByteArrayResource(String className) {
     String path = getResourceName(className);
+    // FIXME lookup by package
     Object loaders = this.resourceLoaders.get(path);
     if (loaders instanceof ResourceLoader) {
       ResourceLoader loader = (ResourceLoader) loaders;
@@ -97,6 +107,7 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
   @Override
   public URL getResource(String name) {
     Objects.requireNonNull(name, "name");
+    // FIXME lookup by package
     Object loaders = this.resourceLoaders.get(name);
     if (loaders instanceof ResourceLoader) {
       ResourceLoader loader = (ResourceLoader) loaders;
@@ -117,6 +128,7 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
   public Enumeration<URL> getResources(String name) throws IOException {
     Objects.requireNonNull(name, "name");
     List<URL> resources = new ArrayList<>();
+    // FIXME lookup by package
     Object loaders = this.resourceLoaders.get(name);
     if (loaders instanceof ResourceLoader) {
       ResourceLoader loader = (ResourceLoader) loaders;
@@ -139,6 +151,7 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
   @Override
   public InputStream getResourceAsStream(String name) {
     Objects.requireNonNull(name, "name");
+    // FIXME lookup by package
     Object loaders = this.resourceLoaders.get(name);
     if (loaders instanceof ResourceLoader) {
       ResourceLoader loader = (ResourceLoader) loaders;
@@ -163,6 +176,7 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
   public void close() throws IOException {
     // TODO nop on second execution
     Set<ResourceLoader> toClose = new HashSet<>();
+    // FIXME lookup by package
     for (Object loaders : this.resourceLoaders.values()) {
       if (loaders instanceof ResourceLoader) {
         toClose.add((ResourceLoader) loaders);
