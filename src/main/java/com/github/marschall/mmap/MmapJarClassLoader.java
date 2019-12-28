@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import com.github.marschall.mmap.PackageSubstring.PackageOfClass;
+import com.github.marschall.mmap.PackageSubstring.PackageOfFile;
 
 public final class MmapJarClassLoader extends ClassLoader implements Closeable {
 
@@ -24,20 +26,19 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
 
   // TODO check opening folders as resources
 
-  // TODO CharSequence and custom map
+  // TODO custom map
 
   // expert
   // - byte[] pool
-  // - ByteBuffer to String
 
-  private final Map<String, Object> resourceLoaders;
+  private final Map<PackageSubstring, Object> resourceLoaders;
 
   public MmapJarClassLoader(String name, ClassLoader parent, File[] jarFiles) {
     super(name, parent);
     this.resourceLoaders = buildResourceLoaderMap(jarFiles);
   }
 
-  private static Map<String, Object> buildResourceLoaderMap(File[] jarFiles) {
+  private static Map<PackageSubstring, Object> buildResourceLoaderMap(File[] jarFiles) {
     return null;
   }
 
@@ -87,8 +88,7 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
 
   private ByteArrayResource findByteArrayResource(String className) {
     String path = getResourceName(className);
-    // FIXME lookup by package
-    Object loaders = this.resourceLoaders.get(path);
+    Object loaders = this.resourceLoaders.get(new PackageOfClass(className));
     if (loaders instanceof ResourceLoader) {
       ResourceLoader loader = (ResourceLoader) loaders;
       return loader.findByteArrayResource(path);
@@ -107,8 +107,7 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
   @Override
   public URL getResource(String name) {
     Objects.requireNonNull(name, "name");
-    // FIXME lookup by package
-    Object loaders = this.resourceLoaders.get(name);
+    Object loaders = this.resourceLoaders.get(new PackageOfFile(name));
     if (loaders instanceof ResourceLoader) {
       ResourceLoader loader = (ResourceLoader) loaders;
       return loader.findResource(name);
@@ -127,8 +126,7 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
   @Override
   public Enumeration<URL> getResources(String name) throws IOException {
     Objects.requireNonNull(name, "name");
-    // FIXME lookup by package
-    Object loaders = this.resourceLoaders.get(name);
+    Object loaders = this.resourceLoaders.get(new PackageOfFile(name));
     if (loaders instanceof ResourceLoader) {
       ResourceLoader loader = (ResourceLoader) loaders;
       URL resource = loader.findResource(name);
@@ -156,8 +154,7 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
   @Override
   public InputStream getResourceAsStream(String name) {
     Objects.requireNonNull(name, "name");
-    // FIXME lookup by package
-    Object loaders = this.resourceLoaders.get(name);
+    Object loaders = this.resourceLoaders.get(new PackageOfFile(name));
     if (loaders instanceof ResourceLoader) {
       ResourceLoader loader = (ResourceLoader) loaders;
       return loader.findResourceAsStream(name);
@@ -181,7 +178,6 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
   public void close() throws IOException {
     // TODO nop on second execution
     Set<ResourceLoader> toClose = new HashSet<>();
-    // FIXME lookup by package
     for (Object loaders : this.resourceLoaders.values()) {
       if (loaders instanceof ResourceLoader) {
         toClose.add((ResourceLoader) loaders);
