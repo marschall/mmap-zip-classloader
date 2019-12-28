@@ -127,25 +127,30 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
   @Override
   public Enumeration<URL> getResources(String name) throws IOException {
     Objects.requireNonNull(name, "name");
-    List<URL> resources = new ArrayList<>();
     // FIXME lookup by package
     Object loaders = this.resourceLoaders.get(name);
     if (loaders instanceof ResourceLoader) {
       ResourceLoader loader = (ResourceLoader) loaders;
       URL resource = loader.findResource(name);
       if (resource != null) {
-        resources.add(resource);
+        return new SingletonEnumeration<URL>(resource);
+      } else {
+        return Collections.emptyEnumeration();
       }
     } else if (loaders instanceof List) {
-      for (Object each : (List<?>) loaders) {
+      List<?> loaderList = (List<?>) loaders;
+      List<URL> resources = new ArrayList<>(loaderList.size());
+      for (Object each : loaderList) {
         ResourceLoader loader = (ResourceLoader) each;
         URL resource = loader.findResource(name);
         if (resource != null) {
           resources.add(resource);
         }
       }
+      return Collections.enumeration(resources);
+    } else {
+      throw new IllegalStateException("corrupted object state");
     }
-    return Collections.enumeration(resources);
   }
 
   @Override

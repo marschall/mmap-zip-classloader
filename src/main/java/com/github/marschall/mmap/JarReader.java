@@ -5,6 +5,7 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
@@ -24,6 +25,9 @@ final class JarReader {
   private static final int END_OF_CENTRAL_DIR_SIZE = 22;
 
   public void scan(Path path) throws IOException {
+    if (!Files.isRegularFile(path)) {
+      throw new ZipException("not a regular file: " + path);
+    }
     try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
       long size = channel.size();
       if (size > Integer.MAX_VALUE) {
@@ -61,8 +65,13 @@ final class JarReader {
     int numberOfRecords = endOfCentralDirectoryRecord.getNumberOfRecords();
     List<CentralDirectoryHeader> headers = new ArrayList<>(numberOfRecords);
     int offset = endOfCentralDirectoryRecord.getOffset();
+    byte[] fileNameBuffer = new byte[256];
 
     Set<Integer> compressionMethods = new HashSet<>();
+    Set<Integer> versionsMadeBy = new HashSet<>();
+    Set<Integer> hostSystems = new HashSet<>();
+    int maxVersionNeededToExtract = 0;
+    int maxFileNameLength = 0;
 
     for (int i = 0; i < numberOfRecords; i++) {
       int signature = readInt4(buffer, offset);
@@ -70,6 +79,8 @@ final class JarReader {
         throw new ZipException("corrupt file header");
       }
       int versionMadeBy = readInt2(buffer, offset + 4);
+      int hostSystem = (versionMadeBy & 0xFF00) >>> 8;
+
       int versionNeededToExtract = readInt2(buffer, offset + 6);
       int generalPurposeBitFlag = readInt2(buffer, offset + 8);
 
@@ -100,17 +111,63 @@ final class JarReader {
       int internalFileAttributes = readInt2(buffer, offset + 36);
       int externalFileAttributes = readInt4(buffer, offset + 38);
       int localHeaderOffset = readInt4(buffer, offset + 42);
-      
-      String fileName = readString(buffer, offset + 46, fileNameLength);
+
+      fileNameBuffer = ensureBufferSize(fileNameBuffer, fileNameLength);
+      String fileName = readString(buffer, fileNameBuffer, offset + 46, fileNameLength);
+      //      if ((fileName.endsWith("/") || fileName.endsWith("\\")) && hostSystem == HostSystem.DOS) {
+      //        boolean isDirectory = (externalFileAttributes & DosFileAttributes.DIRECTORY) != 0;
+      //        if (!isDirectory) {
+      //          
+      //        }
+      //      }
+      if (fileName.endsWith("\\")) {
+        System.out.println("x");
+      }
+      //      if ((fileName.endsWith("/") || fileName.endsWith("\\")) && hostSystem == HostSystem.UNIX) {
+      //        boolean isDirectory = (externalFileAttributes & DosFileAttributes.DIRECTORY) != 0;
+      //        // https://unix.stackexchange.com/questions/14705/the-zip-formats-external-file-attribute
+      //        boolean isDirectoryU = ((externalFileAttributes >>> 16) & UnixAttributes.S_IFDIR) != 0;
+      //        if (!isDirectory || !isDirectoryU) {
+      //          System.out.println("x");
+      //        }
+      //        if (fileName.equals("META-INF/")) {
+      //          System.out.println("x");
+      //        }
+      //      }
 
       CentralDirectoryHeader header = new CentralDirectoryHeader(fileName, compressionMethod, crc32, compressedSize, uncompressedSize, localHeaderOffset);
       headers.add(header);
-      
+
       compressionMethods.add(compressionMethod);
+      versionsMadeBy.add(versionMadeBy & 0xFF);
+      hostSystems.add(hostSystem);
+      maxVersionNeededToExtract = Math.max(maxVersionNeededToExtract, versionNeededToExtract);
+      maxFileNameLength = Math.max(maxFileNameLength, fileNameLength);
+
       offset += 46 + fileNameLength + extraFieldLength + fileCommentLength;
     }
     System.out.println("compression methods: " + compressionMethods);
+    System.out.println("versions made by: " + versionsMadeBy);
+    System.out.println("host systems: " + hostSystems);
+    System.out.println("version needed to extract: " + maxVersionNeededToExtract);
+    System.out.println("max file name length: " + maxFileNameLength);
     return headers;
+  }
+
+  static byte[] ensureBufferSize(byte[] buffer, int length) {
+    if (buffer.length >= length) {
+      return buffer;
+    } else {
+      return new byte[roundUpToNextPowerOfTwo(length)];
+    }
+  }
+
+  static int roundUpToNextPowerOfTwo(int i) {
+    int highestOneBit = Integer.highestOneBit(i);
+    if (i == highestOneBit) {
+      return i;
+    }
+    return highestOneBit << 1;
   }
 
   public static void main(String[] args) throws IOException {
@@ -228,13 +285,12 @@ final class JarReader {
     return value;
   }
 
-  private static String readString(MappedByteBuffer buffer, int offset, int length) {
+  private static String readString(MappedByteBuffer buffer, byte[] heapBuffer, int offset, int length) {
     // TODO fixed in 13
-    byte[] bytes = new byte[length];
     for (int i = 0; i < length; i++) {
-      bytes[i] = buffer.get(offset + i);
+      heapBuffer[i] = buffer.get(offset + i);
     }
-    return new String(bytes, StandardCharsets.UTF_8);
+    return new String(heapBuffer, StandardCharsets.UTF_8);
   }
 
   private static IllegalStateException illegalStateExceptionValueTooLarge() {

@@ -9,8 +9,8 @@ import java.util.Objects;
  * {@code "com.github.marschall.mmap.PackageOfClass"} to
  * {@code "com/github/marschall/mmap"}.
  */
-final class PackageOfClass implements CharSequence {
-  
+final class PackageOfClass extends PackageSubstring {
+
   // TODO Comparable to HashMap collisions?
 
   private final String className;
@@ -19,26 +19,7 @@ final class PackageOfClass implements CharSequence {
   PackageOfClass(String className) {
     Objects.requireNonNull(className, "className");
     this.className = className;
-    this.length = className.lastIndexOf('/');
-  }
-
-  @Override
-  public int length() {
-    return this.length;
-  }
-
-  @Override
-  public char charAt(int index) {
-    if (index < 0 || index >= this.length) {
-      throw new IndexOutOfBoundsException(index);
-    }
-    return this.className.charAt(index);
-  }
-
-  @Override
-  public CharSequence subSequence(int start, int end) {
-    // TODO Auto-generated method stub
-    return null;
+    this.length = className.lastIndexOf('.');
   }
 
   @Override
@@ -62,20 +43,9 @@ final class PackageOfClass implements CharSequence {
       }
       return this.className.regionMatches(0, other.className, 0, this.length);
     }
-    
-    if (obj instanceof CharSequence) {
-      CharSequence other = (CharSequence) obj;
-      if (this.length != other.length()) {
-        return false;
-      }
-      for (int i = 0; i < this.length; i++) {
-        if (this.className.charAt(i) != other.charAt(i)) {
-          return false;
-        }
-      }
-      return true;
-    }
-    
+
+    // no check for CharSequence as it can not be made reflexive
+
     return false;
   }
 
