@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.zip.CRC32;
+import java.util.zip.CRC32C;
 import java.util.zip.ZipException;
 
 final class ZipReader {
@@ -19,6 +21,8 @@ final class ZipReader {
   private static final int CENTRAL_FILE_HEADER_SIGNATURE = 0x02014b50;
 
   private static final int END_OF_CENTRAL_DIR_SIGNATURE = 0x06054b50;
+  
+  private static final int LOCAL_FILE_HEADER_SIGNATURE  = 0x04034b50;
 
   private static final int END_OF_CENTRAL_DIR_SIZE = 22;
 
@@ -188,9 +192,38 @@ final class ZipReader {
     return new EndOfCentralDirectoryRecord(centralDirectoryRecordOffset, totalNumberOfCentralDirectoryRecords, centralDirectoryRecordSize);
   }
 
-  byte[] readFile(CentralDirectoryHeader header) {
-    // TODO Auto-generated method stub
-    return null;
+  byte[] readFile(CentralDirectoryHeader header, byte[] buffer) throws ZipException {
+    int offset = header.getLocalHeaderOffset();
+    
+    int signature = readInt4(offset);
+    if (signature != LOCAL_FILE_HEADER_SIGNATURE) {
+      throw new ZipException("corrupt file header");
+    }
+
+    int versionNeededToExtract = readInt2(offset + 4);
+    int generalPurposeBitFlag = readInt2(offset + 6);
+
+    int compressionMethod  = readInt2(offset + 8);
+    int fileLastModificationTime = readInt2(offset + 10);
+    int fileLastModificationDate = readInt2(offset + 12);
+    int crc32 = readInt4(offset + 14);
+    int compressedSize = readInt4(offset + 18);
+    int uncompressedSize = readInt4(offset + 22);
+
+    int fileNameLength = readInt2(offset + 26);
+    int extraFieldLength = readInt2(offset + 28);
+
+//    if (crc32 != computeCrc32(buffer, 0, uncompressedSize)) {
+//      throw new ZipException("corrupted zip entry");
+//    }
+    
+    return buffer;
+  }
+  
+  private static int computeCrc32(byte[] buffer, int offset, int length) {
+    CRC32 crc32 = new CRC32();
+    crc32.update(buffer, offset, length);
+    return (int) crc32.getValue();
   }
 
   static byte[] ensureBufferSize(byte[] buffer, int length) {

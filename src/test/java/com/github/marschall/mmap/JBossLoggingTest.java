@@ -23,8 +23,10 @@ class JBossLoggingTest {
         List<CentralDirectoryHeader> headers = reader.readCentralDirectoryRecord(endOfCentralDirectoryRecord);
         for (CentralDirectoryHeader header : headers) {
           if (header.getFileName().equals(zipPath)) {
-            byte[] file = reader.readFile(header);
-            System.out.println(file);
+            int uncompressedSize = header.getUncompressedSize();
+            byte[] buffer = new byte[uncompressedSize];
+            reader.readFile(header, buffer);
+            System.out.println(buffer);
           }
         }
       }

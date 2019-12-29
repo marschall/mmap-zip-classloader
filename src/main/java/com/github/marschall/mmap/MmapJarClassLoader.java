@@ -55,7 +55,15 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
   protected Class<?> findClass(String moduleName, String name) {
     Objects.requireNonNull(name, "name");
     if (moduleName == null) {
-      ByteArrayResource resource = this.findByteArrayResource(name);
+      ByteArrayResource resource;
+      try {
+        resource = this.findByteArrayResource(name);
+      } catch (IOException e) {
+        // uncool eats exceptions but built in classes do the same
+        // see jdk.internal.loader.BuiltinClassLoader.defineClass(String, LoadedModule)
+        // see jdk.internal.loader.Loader.defineClass(String, LoadedModule)
+        return null;
+      }
       if (resource != null) {
         try {
           return this.defineClass(name, resource);
@@ -70,7 +78,12 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
   @Override
   protected Class<?> findClass(String name) throws ClassNotFoundException {
     Objects.requireNonNull(name, "name");
-    ByteArrayResource resource = this.findByteArrayResource(name);
+    ByteArrayResource resource;
+    try {
+      resource = this.findByteArrayResource(name);
+    } catch (IOException e) {
+      throw new ClassNotFoundException(name, e);
+    }
     if (resource != null) {
       try {
         return this.defineClass(name, resource);
@@ -86,7 +99,7 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
     return this.defineClass(className, resource.getByteArray(), resource.getOffset(), resource.getLength());
   }
 
-  private ByteArrayResource findByteArrayResource(String className) {
+  private ByteArrayResource findByteArrayResource(String className) throws IOException {
     String path = getResourceName(className);
     Object loaders = this.resourceLoaders.get(new PackageOfClass(className));
     if (loaders instanceof ZipResourceLoader) {

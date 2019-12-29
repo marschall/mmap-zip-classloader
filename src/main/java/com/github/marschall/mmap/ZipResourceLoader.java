@@ -34,13 +34,15 @@ final class ZipResourceLoader {
     return headerMap;
   }
 
-  ByteArrayResource findByteArrayResource(String path) {
+  ByteArrayResource findByteArrayResource(String path) throws ZipException {
     CentralDirectoryHeader header = this.headerMap.get(path);
     if (header == null) {
       return null;
     }
-    byte[] file = this.zipReader.readFile(header);
-    return new ByteArrayResource(file, 0, file.length);
+    int uncompressedSize = header.getUncompressedSize();
+    byte[] buffer = new byte[uncompressedSize];
+    this.zipReader.readFile(header, buffer);
+    return new ByteArrayResource(buffer, 0, uncompressedSize);
   }
 
   InputStream findResourceAsStream(String path) {
