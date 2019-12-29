@@ -52,5 +52,10 @@ final class CentralDirectoryHeader {
     // TODO subsequence to reduce allocation
     return fileName.substring(0, fileName.length() - 7);
   }
+  
+  @Override
+  public String toString() {
+    return this.fileName.toString();
+  }
 
 }

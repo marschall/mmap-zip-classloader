@@ -89,12 +89,12 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
   private ByteArrayResource findByteArrayResource(String className) {
     String path = getResourceName(className);
     Object loaders = this.resourceLoaders.get(new PackageOfClass(className));
-    if (loaders instanceof ResourceLoader) {
-      ResourceLoader loader = (ResourceLoader) loaders;
+    if (loaders instanceof ZipResourceLoader) {
+      ZipResourceLoader loader = (ZipResourceLoader) loaders;
       return loader.findByteArrayResource(path);
     } else if (loaders instanceof List) {
       for (Object each : (List<?>) loaders) {
-        ResourceLoader loader = (ResourceLoader) each;
+        ZipResourceLoader loader = (ZipResourceLoader) each;
         ByteArrayResource resource = loader.findByteArrayResource(path);
         if (resource != null) {
           return resource;
@@ -108,12 +108,12 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
   public URL getResource(String name) {
     Objects.requireNonNull(name, "name");
     Object loaders = this.resourceLoaders.get(new PackageOfFile(name));
-    if (loaders instanceof ResourceLoader) {
-      ResourceLoader loader = (ResourceLoader) loaders;
+    if (loaders instanceof ZipResourceLoader) {
+      ZipResourceLoader loader = (ZipResourceLoader) loaders;
       return loader.findResource(name);
     } else if (loaders instanceof List) {
       for (Object each : (List<?>) loaders) {
-        ResourceLoader loader = (ResourceLoader) each;
+        ZipResourceLoader loader = (ZipResourceLoader) each;
         URL resource = loader.findResource(name);
         if (resource != null) {
           return resource;
@@ -127,8 +127,8 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
   public Enumeration<URL> getResources(String name) throws IOException {
     Objects.requireNonNull(name, "name");
     Object loaders = this.resourceLoaders.get(new PackageOfFile(name));
-    if (loaders instanceof ResourceLoader) {
-      ResourceLoader loader = (ResourceLoader) loaders;
+    if (loaders instanceof ZipResourceLoader) {
+      ZipResourceLoader loader = (ZipResourceLoader) loaders;
       URL resource = loader.findResource(name);
       if (resource != null) {
         return new SingletonEnumeration<URL>(resource);
@@ -139,7 +139,7 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
       List<?> loaderList = (List<?>) loaders;
       List<URL> resources = new ArrayList<>(loaderList.size());
       for (Object each : loaderList) {
-        ResourceLoader loader = (ResourceLoader) each;
+        ZipResourceLoader loader = (ZipResourceLoader) each;
         URL resource = loader.findResource(name);
         if (resource != null) {
           resources.add(resource);
@@ -155,12 +155,12 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
   public InputStream getResourceAsStream(String name) {
     Objects.requireNonNull(name, "name");
     Object loaders = this.resourceLoaders.get(new PackageOfFile(name));
-    if (loaders instanceof ResourceLoader) {
-      ResourceLoader loader = (ResourceLoader) loaders;
+    if (loaders instanceof ZipResourceLoader) {
+      ZipResourceLoader loader = (ZipResourceLoader) loaders;
       return loader.findResourceAsStream(name);
     } else if (loaders instanceof List) {
       for (Object each : (List<?>) loaders) {
-        ResourceLoader loader = (ResourceLoader) each;
+        ZipResourceLoader loader = (ZipResourceLoader) each;
         InputStream resource = loader.findResourceAsStream(name);
         if (resource != null) {
           return resource;
@@ -177,18 +177,18 @@ public final class MmapJarClassLoader extends ClassLoader implements Closeable {
   @Override
   public void close() throws IOException {
     // TODO nop on second execution
-    Set<ResourceLoader> toClose = new HashSet<>();
+    Set<ZipResourceLoader> toClose = new HashSet<>();
     for (Object loaders : this.resourceLoaders.values()) {
-      if (loaders instanceof ResourceLoader) {
-        toClose.add((ResourceLoader) loaders);
+      if (loaders instanceof ZipResourceLoader) {
+        toClose.add((ZipResourceLoader) loaders);
       } else if (loaders instanceof List) {
         for (Object each : (List<?>) loaders) {
-          toClose.add((ResourceLoader) each);
+          toClose.add((ZipResourceLoader) each);
         }
       }
     }
     List<IOException> caughtExceptions = new ArrayList<>();
-    for (ResourceLoader resourceLoader : toClose) {
+    for (ZipResourceLoader resourceLoader : toClose) {
       // even if one unmap() fails make sure we try to unmap() all
       try {
         resourceLoader.close();
