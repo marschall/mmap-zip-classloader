@@ -22,9 +22,11 @@ final class ZipReader {
 
   private static final int END_OF_CENTRAL_DIR_SIGNATURE = 0x06054b50;
   
-  private static final int LOCAL_FILE_HEADER_SIGNATURE  = 0x04034b50;
-
   private static final int END_OF_CENTRAL_DIR_SIZE = 22;
+  
+  private static final int LOCAL_FILE_HEADER_SIGNATURE  = 0x04034b50;
+  
+  private static final int LOCAL_FILE_HEADER_SIZE  = 30;
 
   private final MappedByteBuffer buffer;
 
@@ -110,6 +112,10 @@ final class ZipReader {
       int fileCommentLength = readInt2(offset + 32);
 
       int startDiskNumber = readInt2(offset + 34);
+      if (startDiskNumber != 0) {
+        throw new ZipException("multiple disks not supported");
+      }
+      
       int internalFileAttributes = readInt2(offset + 36);
       int externalFileAttributes = readInt4(offset + 38);
       int localHeaderOffset = readInt4(offset + 42);
@@ -192,7 +198,7 @@ final class ZipReader {
     return new EndOfCentralDirectoryRecord(centralDirectoryRecordOffset, totalNumberOfCentralDirectoryRecords, centralDirectoryRecordSize);
   }
 
-  byte[] readFile(CentralDirectoryHeader header, byte[] buffer) throws ZipException {
+  void readFile(CentralDirectoryHeader header, byte[] target) throws ZipException {
     int offset = header.getLocalHeaderOffset();
     
     int signature = readInt4(offset);
@@ -212,14 +218,55 @@ final class ZipReader {
 
     int fileNameLength = readInt2(offset + 26);
     int extraFieldLength = readInt2(offset + 28);
-
-//    if (crc32 != computeCrc32(buffer, 0, uncompressedSize)) {
-//      throw new ZipException("corrupted zip entry");
-//    }
     
-    return buffer;
+    int dataStart = offset + LOCAL_FILE_HEADER_SIZE + fileNameLength + extraFieldLength;
+    switch (header.getCompressionMethod()) {
+      case CompressionMethods.DEFLATE:
+        readDeflate(target, dataStart, uncompressedSize);
+        break;
+      case CompressionMethods.STORE:
+        readStore(target, dataStart, uncompressedSize);
+        break;
+      default:
+        throw new ZipException("unsupported compression method: " + header.getCompressionMethod());
+    }
+
+    if (crc32 != computeCrc32(target, 0, uncompressedSize)) {
+      throw new ZipException("corrupted zip entry");
+    }
+  }
+
+  private void readDeflate(byte[] target, int offset, int size) throws ZipException {
+    int blockOffset = offset;
+    boolean lastBlock = false;
+    while (!lastBlock) {
+      int header = Byte.toUnsignedInt(this.buffer.get(blockOffset));
+      lastBlock = (header & 0b10000000) != 0;
+      int btype = (header & 0b01100000) >> 5;
+      switch (btype) {
+        case BType.NO_COMPRESSION:
+          int len = this.readInt2(blockOffset + 1);
+          // one's complement of LEN
+          int nlen = this.readInt2(blockOffset + 3);
+          if ((len ^ nlen) != 0xFFFF) {
+            throw new ZipException("corrupted zip entry");
+          }
+          this.readBytes(target, blockOffset + 5, len);
+          break;
+        case BType.COMPRESSED_DYNAMIC:
+          break;
+        case BType.COMPRESSED_FIXED:
+          break;
+        case BType.RESERVED:
+          throw new ZipException("reserved BTYPE");
+      }
+    }
   }
   
+  private void readStore(byte[] target, int offset, int size) {
+    readBytes(target, offset, size);
+  }
+
   private static int computeCrc32(byte[] buffer, int offset, int length) {
     CRC32 crc32 = new CRC32();
     crc32.update(buffer, offset, length);
@@ -274,12 +321,16 @@ final class ZipReader {
     return value;
   }
 
-  String readString(byte[] heapBuffer, int offset, int length) {
+  String readString(byte[] target, int offset, int length) {
+    readBytes(target, offset, length);
+    return new String(target, 0, length, StandardCharsets.UTF_8);
+  }
+  
+  private void readBytes(byte[] target, int offset, int length) {
     // TODO fixed in 13
     for (int i = 0; i < length; i++) {
-      heapBuffer[i] = buffer.get(offset + i);
+      target[i] = buffer.get(offset + i);
     }
-    return new String(heapBuffer, 0, length, StandardCharsets.UTF_8);
   }
 
   private static IllegalStateException illegalStateExceptionValueTooLarge() {
