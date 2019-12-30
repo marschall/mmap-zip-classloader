@@ -1,5 +1,7 @@
 package com.github.marschall.mmap;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import java.io.IOException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
@@ -29,10 +31,21 @@ class BitReaderTest {
 
   @Test
   void test() throws IOException {
-    BitReader reader = this.createBitReader(new byte[] {(byte) 0b10110011, (byte) 0b100001111, (byte) 0b00001111});
+//    BitReader reader = this.createBitReader(new byte[] {(byte) 0b10110011, (byte) 0b10001111, (byte) 0b00001111, (byte) 0b10000011});
+    
+    //                                                                            |   |             |      |                                    |
+    LeastSignificantBitReader reader = this.createBitReader(new byte[] {(byte) 0b01001100, (byte) 0b01110000, (byte) 0b0000, (byte) 0b01111100});
+
+    // least significant bit
+    assertEquals(0b10, reader.readBits(2));
+    assertEquals(0b1100, reader.readBits(4));
+    assertEquals(0b000, reader.readBits(3));
+    assertEquals(0b0000111, reader.readBits(7));
+    assertEquals(0b01111100001111, reader.readBits(15));
+    assertEquals(0b0, reader.readBits(1));
   }
 
-  private BitReader createBitReader(byte[] data) throws IOException {
+  private LeastSignificantBitReader createBitReader(byte[] data) throws IOException {
     Random random = new Random();
     int padLenght = random.nextInt(15);
     byte[] padded = new byte[padLenght + data.length];
@@ -44,7 +57,7 @@ class BitReaderTest {
 
     FileChannel channel = FileChannel.open(this.tempFile, StandardOpenOption.READ);
     MappedByteBuffer buffer = channel.map(MapMode.READ_ONLY, 0L, padded.length);
-    return new BitReader(buffer, padLenght);
+    return new LeastSignificantBitReader(buffer, padLenght);
   }
 
 }
