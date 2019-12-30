@@ -34,14 +34,14 @@ class BitReaderTest {
 //    BitReader reader = this.createBitReader(new byte[] {(byte) 0b10110011, (byte) 0b10001111, (byte) 0b00001111, (byte) 0b10000011});
     
     //                                                                            |   |             |      |                                    |
-    LeastSignificantBitReader reader = this.createBitReader(new byte[] {(byte) 0b01001100, (byte) 0b01110000, (byte) 0b0000, (byte) 0b01111100});
+    LeastSignificantBitReader reader = this.createBitReader(new byte[] {(byte) 0b01001100, (byte) 0b01110000, (byte) 0b11110000, (byte) 0b01111100});
 
     // least significant bit
     assertEquals(0b10, reader.readBits(2));
     assertEquals(0b1100, reader.readBits(4));
     assertEquals(0b000, reader.readBits(3));
     assertEquals(0b0000111, reader.readBits(7));
-    assertEquals(0b01111100001111, reader.readBits(15));
+    assertEquals(0b011111000001111, reader.readBits(15));
     assertEquals(0b0, reader.readBits(1));
   }
 

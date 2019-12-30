@@ -19,7 +19,7 @@ final class LeastSignificantBitReader {
   }
 
   int readBits(int len) {
-    if (len <= 0) {
+    if (len <= 0 || len > 31) {
       throw new IllegalArgumentException();
     }
     int bits = 0;
