@@ -14,11 +14,24 @@ final class LeastSignificantBitReader {
 
   LeastSignificantBitReader(MappedByteBuffer buffer, int offset) {
     this.buffer = buffer;
-    this.byteOffset = offset;
+    this.byteOffset = 0;
     this.bitOffset = -1;
+  }
+  
+  void position(int byteOffset, int bitsRead) {
+    if (byteOffset < 0) {
+      throw new IllegalArgumentException();
+    }
+    if (bitsRead < 0 || bitsRead >= 8) {
+      throw new IllegalArgumentException();
+    }
+    this.byteOffset = byteOffset;
+    this.currentByte = Byte.toUnsignedInt(this.buffer.get(this.byteOffset));
+    this.bitOffset = 7 - bitsRead;
   }
 
   int readBits(int len) {
+    // TODO optimize
     if (len <= 0 || len > 31) {
       throw new IllegalArgumentException();
     }

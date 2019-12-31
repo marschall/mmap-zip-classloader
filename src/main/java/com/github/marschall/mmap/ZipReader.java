@@ -13,7 +13,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.zip.CRC32;
-import java.util.zip.CRC32C;
 import java.util.zip.ZipException;
 
 final class ZipReader {
@@ -27,6 +26,12 @@ final class ZipReader {
   private static final int LOCAL_FILE_HEADER_SIGNATURE  = 0x04034b50;
   
   private static final int LOCAL_FILE_HEADER_SIZE  = 30;
+
+  /**
+   * code lengths for the code length alphabet given just above, in the order
+   */
+  private static final int[] CODE_LENGTHS_ORDER =
+          {16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15};
 
   private final MappedByteBuffer buffer;
 
@@ -237,6 +242,7 @@ final class ZipReader {
   }
 
   private void readDeflate(byte[] target, int offset, int size) throws ZipException {
+    LeastSignificantBitReader bitReader = new LeastSignificantBitReader(this.buffer, offset);
     int blockOffset = offset;
     boolean lastBlock = false;
     while (!lastBlock) {
@@ -249,18 +255,44 @@ final class ZipReader {
           // one's complement of LEN
           int nlen = this.readInt2(blockOffset + 3);
           if ((len ^ nlen) != 0xFFFF) {
-            throw new ZipException("corrupted zip entry");
+            throw new ZipException("corrupted non-compressed block header");
           }
           this.readBytes(target, blockOffset + 5, len);
           break;
         case BType.COMPRESSED_DYNAMIC:
+          this.readDynamicHuffmanTrees(bitReader, blockOffset);
+          
           break;
         case BType.COMPRESSED_FIXED:
+          bitReader.position(blockOffset, 3);
           break;
         case BType.RESERVED:
           throw new ZipException("reserved BTYPE");
       }
     }
+  }
+
+  private void readDynamicHuffmanTrees(LeastSignificantBitReader bitReader,
+      int blockOffset) {
+    bitReader.position(blockOffset, 3);
+    // 5 Bits: HLIT, # of Literal/Length codes - 257 (257 - 286)
+    int literals = bitReader.readBits(5) + 257;
+    // 5 Bits: HDIST, # of Distance codes - 1        (1 - 32)
+    int distances = bitReader.readBits(5) + 1;
+    // 4 Bits: HCLEN, # of Code Length codes - 4     (4 - 19)
+    int codeLengths = bitReader.readBits(4) + 4;
+    
+    // (HCLEN + 4) x 3 bits: code lengths for the code length alphabet given just above
+    // TODO only 3 of 8 bytes used
+    byte[] codeLengthValues = new byte[codeLengths];
+    for (int i = 0; i < codeLengths; i++) {
+      int codeLengthIndex = CODE_LENGTHS_ORDER[i];
+      codeLengthValues[codeLengthIndex] = (byte) bitReader.readBits(3);
+    }
+    // These code lengths are interpreted as 3-bit integers
+    // (0-7); as above, a code length of 0 means the
+    // corresponding symbol (literal/length or distance code
+    // length) is not used.
   }
   
   private void readStore(byte[] target, int offset, int size) {
