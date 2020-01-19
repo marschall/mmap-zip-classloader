@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+
 import com.github.marschall.mmap.PackageSubstring.PackageOfClass;
 import com.github.marschall.mmap.PackageSubstring.PackageOfFile;
 

@@ -37,7 +37,7 @@ final class Unmapper {
 
   private static Object getTheUnsafe(Class<?> unsafeClass) throws ReflectiveOperationException {
     Field singleoneInstanceField = unsafeClass.getDeclaredField("theUnsafe");
-    if (!singleoneInstanceField.isAccessible()) {
+    if (!singleoneInstanceField.canAccess(null)) {
       singleoneInstanceField.setAccessible(true);
     }
     return singleoneInstanceField.get(null);
