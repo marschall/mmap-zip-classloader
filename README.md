@@ -23,4 +23,3 @@ Recommendations
 ---------------
 
 * Avoid split packages if possible as they increase lookup time and memory footprint.
-
