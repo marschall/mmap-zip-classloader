@@ -17,7 +17,6 @@ TODO
 ----
 * multi release JARs
 * signed JARs
-* permission checks, AccessControlContext
 
 Recommendations
 ---------------

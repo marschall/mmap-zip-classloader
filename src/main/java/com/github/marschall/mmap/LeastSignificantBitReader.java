@@ -17,7 +17,7 @@ final class LeastSignificantBitReader {
     this.byteOffset = 0;
     this.bitOffset = -1;
   }
-  
+
   void position(int byteOffset, int bitsRead) {
     if (byteOffset < 0) {
       throw new IllegalArgumentException();
